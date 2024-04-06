@@ -1,0 +1,144 @@
+﻿@using Claudia
+@using Blazored.LocalStorage
+@using AiChatUi.Models
+
+<div class="d-flex flex-column container-fluid h-100">
+
+    <ChatMessagesDisplay Context="Context" UseMarkdown="UseMarkdown" UseAutoScroll="UseAutoScroll" />
+
+    <div class="card text-dark bg-light">
+        <div class="card-body">
+            <form @onsubmit="SendClick">
+                <div class="row mb-1">
+                    <div class="col">
+                        <input type="checkbox" class="btn-check" id="btn-check-use-markdown" @bind="UseMarkdown" autocomplete="off">
+                        <label class="btn btn-outline-primary btn-sm" for="btn-check-use-markdown" title="Use Markdown"><i class="bi bi-markdown"></i></label>
+
+                        <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="UseAutoScroll" autocomplete="off">
+                        <label class="btn btn-outline-primary btn-sm" for="btn-check-use-auto-scroll" title="Autoscroll"><i class="bi bi-chevron-bar-down"></i></label>
+                    </div>
+                    <div class="col">
+                        <select class="form-select form-select-sm" @bind="Context.SelectedModel">
+                            @foreach (var item in AvailableModels)
+                            {
+                                <option value="@item">@item</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <div class="input-group">
+                            <textarea class="form-control" type="text" id="chat-input" placeholder="Enter Message..." 
+                                autocomplete="off" @bind="Context.TextInput"></textarea>
+                            <button class="btn btn-primary" id="button-addon2" disabled="@Running">Go</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>    
+</div>
+
+@code {
+    [Inject]
+    public required Anthropic Anthropic { get; init; }
+    
+    [Inject]
+    public required ILocalStorageService LocalStorage { get; init; }
+    
+    [Parameter]
+    public ChatContext Context { get; set; } = new();
+    
+    [Parameter]
+    public EventHandler? OnContextChanged { get; set; }
+    
+    private List<string> AvailableModels { get; set; } = new();
+    
+    private bool UseMarkdown { get; set; } = true;
+    private bool UseAutoScroll { get; set; } = true;
+    private bool Running { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // use reflection to get all the models from the Models class
+        foreach (var field in typeof(Claudia.Models).GetFields())
+        {
+            AvailableModels.Add((string)field.GetValue(null)!);
+        }
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Context.SelectedModel = await LocalStorage.GetItemAsync<string>("SelectedModel") ?? Models.Claude1_2;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task SendClick()
+    {
+        if (Running) return;
+        if (string.IsNullOrWhiteSpace(Context.TextInput)) return;
+
+        Running = true;
+        try
+        {
+            Context.LastMessageTime = DateTimeOffset.Now;
+            
+            await LocalStorage.SetItemAsync("SelectedModel", Context.SelectedModel);
+            
+            Context.ChatMessages.Add(new() { Role = Roles.User, Content = Context.TextInput });
+
+            var stream = Anthropic.Messages.CreateStreamAsync(new()
+            {
+                Model = Context.SelectedModel,
+                MaxTokens = 1024,
+                Temperature = Context.Temperature,
+                System = string.IsNullOrWhiteSpace(Context.SystemInput) ? null : Context.SystemInput,
+                Messages = Context.ChatMessages.ToArray()
+            });
+
+            var currentMessage = new Message { Role = Roles.Assistant, Content = "" };
+            Context.ChatMessages.Add(currentMessage);
+
+            Context.TextInput = ""; // clear input.
+            StateHasChanged();
+
+            await foreach (var messageStreamEvent in stream)
+            {
+                if (messageStreamEvent is ContentBlockDelta content)
+                {
+                    currentMessage.Content[0].Text += content.Delta.Text;
+                    StateHasChanged();
+                }
+            }
+
+            if (Context.ChatMessages.Count == 2)
+            {
+                var messagesToSummarize = Context.ChatMessages.ToList();
+                messagesToSummarize.Add(new Message()
+                {
+                    Role = Roles.User,
+                    Content = "Provide a title for this conversation."
+                });
+                
+                var response = await Anthropic.Messages.CreateAsync(new ()
+                {
+                    Model = Models.Claude1_2,
+                    MaxTokens = 50,
+                    Temperature = 1.0,
+                    Messages = messagesToSummarize.ToArray()
+                });
+
+                Context.ChatTitle = response.Content[0].Text!;
+            }
+        }
+        finally
+        {
+            Running = false;
+            OnContextChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+}

@@ -1,0 +1,68 @@
+﻿@page "/"
+@using AiChatUi.Models
+@rendermode InteractiveServer
+
+<PageTitle>Home</PageTitle>
+
+<div class="page vh-100">
+    <div class="sidebar">
+        <div class="top-row ps-3 navbar navbar-dark">
+            <div class="container-fluid">
+                <span class="navbar-brand" href="">
+                    Chat UI
+                    <a class="btn btn-sm btn-primary" href="javascript:void(0)" @onclick="NewChat"><i class="bi bi-chat-left-text-fill"></i> New</a>
+                </span>
+            </div>
+        </div>
+
+        <input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+
+        <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+            <nav class="flex-column">
+                @foreach (var context in ChatContexts.OrderByDescending(m => m.LastMessageTime))
+                {
+                    <div class="nav-item px-3">
+                        <a class="nav-link @(CurrentContext == context ? "active" : "")" href="" @onclick="() => CurrentContext = context">
+                            @context.ChatTitle
+                        </a>
+                    </div>
+                }
+            </nav>
+        </div>
+    </div>
+
+    <main class="h-100">
+        <article class="content d-flex h-100">
+            <MainChat Context="CurrentContext" OnContextChanged="ContextChanged" />
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+    private List<ChatContext> ChatContexts { get; set; } = new();
+
+    private ChatContext CurrentContext { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        ChatContexts.Add(CurrentContext);
+    }
+    
+    private void NewChat()
+    {
+        var newContext = new ChatContext();
+        ChatContexts.Add(newContext);
+        CurrentContext = newContext;
+    }
+
+    private void ContextChanged(object? sender, EventArgs eventArgs)
+    {
+        StateHasChanged();
+    }
+}

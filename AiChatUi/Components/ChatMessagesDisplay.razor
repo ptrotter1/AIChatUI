@@ -1,0 +1,78 @@
+﻿@using Claudia
+@using AiChatUi.Extensions
+@using AiChatUi.Models
+
+@inject IJSRuntime JsRuntime
+
+<div class="card text-dark bg-white flex-grow-1 mb-3">
+    <div class="card-header">
+        @Context.ChatTitle
+    </div>     
+    <div @ref="_chatMessages" class="card-body overflow-auto" style="flex: 1 1 10rem">
+        @foreach (var item in Context.ChatMessages)
+        {
+            @((MarkupString)MessageFormatter(item))
+            _ = ScrollToBottom();
+        }        
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public ChatContext Context { get; set; } = new ChatContext();
+    
+    [Parameter]
+    public bool UseMarkdown { get; set; } = true;
+    
+    [Parameter]
+    public bool UseAutoScroll { get; set; } = true;
+
+    private ElementReference _chatMessages;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        
+        if (firstRender)
+        {
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        if (UseAutoScroll)
+        {
+            await JsRuntime.InvokeVoidAsync("scrollToBottom", _chatMessages);                
+        }
+    }
+    
+    private string MessageFormatter(Message message)
+    {
+        var outString = string.Empty;
+        
+        if (UseMarkdown)
+        {
+            try
+            {
+                if (message.Role == Roles.User)
+                {
+                    outString += $"<div class='mb-2'><span class='text-info fw-bold'>User:</span>{message.ToHtml()}</div>";
+                }
+                else
+                {
+                    outString += $"<div class='mb-2'><span class='text-success fw-bold'>Assistant:</span>{message.ToHtml()}</div>";
+                }
+            }
+            catch (Exception)
+            {
+                // do nothing
+            }            
+        }
+        else
+        {
+            outString += $"*{message.Role}:*<br/><br/>{message.ToPlainText()}<br/><br/>";
+        }
+        return outString;
+    }
+}

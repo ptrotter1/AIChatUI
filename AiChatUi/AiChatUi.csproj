@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>1cf6b9c7-675f-4b86-b184-5ee89fd8f77d</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+      <PackageReference Include="Claudia" Version="1.1.1" />
+      <PackageReference Include="Markdig" Version="0.36.2" />
+      <PackageReference Include="Markdig.SyntaxHighlighting" Version="1.1.7" />
+    </ItemGroup>
+
+</Project>
