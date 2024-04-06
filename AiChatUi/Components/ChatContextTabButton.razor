@@ -1,0 +1,48 @@
+﻿@using AiChatUi.Models
+
+<div class="nav-item px-3 d-flex" @onmouseenter="@OnMouseEnter" @onmouseleave="@OnMouseLeave">
+    <a class="nav-link @(SelectedContext == ThisContext ? "active" : "")" href="" 
+       @onclick="() => SelectChatHandler(ThisContext)">
+        @ThisContext.ChatTitle 
+    </a>
+    <span class="delete-button @(ShowDeleteButton ? "d-inline-block" : "d-none")" 
+          @onclick="() => DeleteContextHandler(ThisContext)">
+        <i class="bi bi-x-lg m-0 text-white"></i>
+    </span>
+</div>
+
+@code {
+    [Parameter] 
+    public ChatContext ThisContext { get; set; } = new();
+
+    [Parameter] 
+    public ChatContext SelectedContext { get; set; } = new();
+    
+    [Parameter] 
+    public EventCallback<ChatContext> OnDeleteContext { get; set; }
+    
+    [Parameter]
+    public EventCallback<ChatContext> OnSelectContext { get; set; }
+
+    private bool ShowDeleteButton { get; set; } = false;
+    
+    private async Task DeleteContextHandler(ChatContext context)
+    {
+        await OnDeleteContext.InvokeAsync(context);
+    }
+    
+    private async Task SelectChatHandler(ChatContext context)
+    {
+        await OnSelectContext.InvokeAsync(context);
+    }
+    
+    private void OnMouseEnter()
+    {
+        ShowDeleteButton = true;
+    }
+    
+    private void OnMouseLeave()
+    {
+        ShowDeleteButton = false;
+    }
+}

@@ -4,6 +4,7 @@ namespace AiChatUi.Models;
 
 public class ChatContext
 {
+    public Guid ChatId { get; set; } = Guid.NewGuid();
     public string ChatTitle { get; set; } = "New Chat";
     public string SystemInput { get; set; } = SystemPrompts.Claude3;
     public double Temperature { get; set; }

@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using AiChatUi.Models
+@using Blazored.LocalStorage
 @rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
@@ -8,9 +9,13 @@
     <div class="sidebar">
         <div class="top-row ps-3 navbar navbar-dark">
             <div class="container-fluid">
-                <span class="navbar-brand" href="">
-                    Chat UI
-                    <a class="btn btn-sm btn-primary" href="javascript:void(0)" @onclick="NewChat"><i class="bi bi-chat-left-text-fill"></i> New</a>
+                <span class="navbar-brand d-flex justify-content-between w-100" href="">
+                    <span class="d-inline-block">
+                        Chat UI
+                    </span>
+                    <a id="new-chat-button" class="btn btn-sm btn-primary" href="javascript:void(0)" @onclick="NewContextHandler">
+                        <i class="bi bi-chat-left-text-fill me-1"></i> New
+                    </a>
                 </span>
             </div>
         </div>
@@ -21,11 +26,10 @@
             <nav class="flex-column">
                 @foreach (var context in ChatContexts.OrderByDescending(m => m.LastMessageTime))
                 {
-                    <div class="nav-item px-3">
-                        <a class="nav-link @(CurrentContext == context ? "active" : "")" href="" @onclick="() => CurrentContext = context">
-                            @context.ChatTitle
-                        </a>
-                    </div>
+                    <ChatContextTabButton ThisContext="context" 
+                                   SelectedContext="CurrentContext" 
+                                   OnDeleteContext="DeleteContextHandler" 
+                                   OnSelectContext="SelectContextHandler" />
                 }
             </nav>
         </div>
@@ -33,7 +37,7 @@
 
     <main class="h-100">
         <article class="content d-flex h-100">
-            <MainChat Context="CurrentContext" OnContextChanged="ContextChanged" />
+            <MainChat Context="CurrentContext" OnContextChanged="ContextChangedHandler" />
         </article>
     </main>
 </div>
@@ -45,24 +49,89 @@
 </div>
 
 @code {
+    [Inject]
+    public required ILocalStorageService LocalStorage { get; init; }
+    
     private List<ChatContext> ChatContexts { get; set; } = new();
 
     private ChatContext CurrentContext { get; set; } = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        ChatContexts.Add(CurrentContext);
+        if (firstRender)
+        {
+            var chatContextIds = await LocalStorage.GetItemAsync<List<Guid>>("ChatContextIds");
+            if (chatContextIds != null)
+            {
+                foreach (var chatContextId in chatContextIds)
+                {
+                    var context = await LocalStorage.GetItemAsync<ChatContext>(chatContextId.ToString());
+                    if (context != null)
+                    {
+                        ChatContexts.Add(context);
+                    }
+                }
+            }
+            if (ChatContexts.Count > 0)
+            {
+                CurrentContext = ChatContexts.OrderByDescending(c => c.LastMessageTime).First();
+            }
+            else
+            {
+                ChatContexts.Add(CurrentContext);
+            }
+            StateHasChanged();
+        }
     }
-    
-    private void NewChat()
+
+    private async Task NewContextHandler()
     {
         var newContext = new ChatContext();
         ChatContexts.Add(newContext);
         CurrentContext = newContext;
+        await SaveContext(newContext);
     }
 
-    private void ContextChanged(object? sender, EventArgs eventArgs)
+    private async Task DeleteContextHandler(ChatContext context)
     {
+        ChatContexts.Remove(context);
+        await LocalStorage.RemoveItemAsync(context.ChatId.ToString());
+        await LocalStorage.SetItemAsync("ChatContextIds", ChatContexts.Select(m => m.ChatId).ToList());
+        if (ChatContexts.Count > 0)
+        {
+            CurrentContext = ChatContexts
+                // Select the context with the last message time before the deleted context
+                .Where(c => c.LastMessageTime < context.LastMessageTime)
+                    .MaxBy(c => c.LastMessageTime) ??
+                // Select the context with the last message time after the deleted context
+                ChatContexts
+                    .Where(c => c.LastMessageTime > context.LastMessageTime)
+                        .OrderByDescending(c => c.LastMessageTime)
+                        .Last();
+        }
+        else
+        {
+            CurrentContext = new ChatContext();
+            ChatContexts.Add(CurrentContext);
+        }
         StateHasChanged();
+    }
+    
+    private async Task SelectContextHandler(ChatContext context)
+    {
+        CurrentContext = context;
+        await ContextChangedHandler();
+    }
+
+    private async Task ContextChangedHandler()
+    {
+        await InvokeAsync(StateHasChanged);
+        await SaveContext(CurrentContext);
+    }
+
+    private async Task SaveContext(ChatContext context)
+    {
+        await LocalStorage.SetItemAsync("ChatContextIds", ChatContexts.Select(m => m.ChatId).ToList());
+        await LocalStorage.SetItemAsync(context.ChatId.ToString(), context);
     }
 }

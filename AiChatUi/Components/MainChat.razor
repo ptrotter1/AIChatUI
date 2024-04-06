@@ -4,17 +4,17 @@
 
 <div class="d-flex flex-column container-fluid h-100">
 
-    <ChatMessagesDisplay Context="Context" UseMarkdown="UseMarkdown" UseAutoScroll="UseAutoScroll" />
+    <ChatContextMessagesDisplay Context="Context" UseMarkdown="IsMarkdownEnabled" UseAutoScroll="IsAutoScrollEnabled" />
 
     <div class="card text-dark bg-light">
         <div class="card-body">
-            <form @onsubmit="SendClick">
-                <div class="row mb-1">
+            <form>
+                <div class="row mb-2">
                     <div class="col">
-                        <input type="checkbox" class="btn-check" id="btn-check-use-markdown" @bind="UseMarkdown" autocomplete="off">
+                        <input type="checkbox" class="btn-check" id="btn-check-use-markdown" @bind="IsMarkdownEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-markdown" title="Use Markdown"><i class="bi bi-markdown"></i></label>
 
-                        <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="UseAutoScroll" autocomplete="off">
+                        <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="IsAutoScrollEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-auto-scroll" title="Autoscroll"><i class="bi bi-chevron-bar-down"></i></label>
                     </div>
                     <div class="col">
@@ -30,8 +30,10 @@
                     <div class="col">
                         <div class="input-group">
                             <textarea class="form-control" type="text" id="chat-input" placeholder="Enter Message..." 
-                                autocomplete="off" @bind="Context.TextInput"></textarea>
-                            <button class="btn btn-primary" id="button-addon2" disabled="@Running">Go</button>
+                                autocomplete="off" @bind="Context.TextInput" @onkeydown="@KeyPressHandler"></textarea>
+                            <button type="button" class="btn btn-primary" id="button-addon2" disabled="@IsRunning" @onclick="SubmitHandler">
+                                <i class="bi bi-send"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -47,17 +49,20 @@
     [Inject]
     public required ILocalStorageService LocalStorage { get; init; }
     
+    [Inject]
+    public required IJSRuntime JsRuntime { get; init; }
+    
     [Parameter]
     public ChatContext Context { get; set; } = new();
     
     [Parameter]
-    public EventHandler? OnContextChanged { get; set; }
+    public EventCallback OnContextChanged { get; set; }
     
     private List<string> AvailableModels { get; set; } = new();
     
-    private bool UseMarkdown { get; set; } = true;
-    private bool UseAutoScroll { get; set; } = true;
-    private bool Running { get; set; } = false;
+    private bool IsMarkdownEnabled { get; set; } = true;
+    private bool IsAutoScrollEnabled { get; set; } = true;
+    private bool IsRunning { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -67,22 +72,31 @@
             AvailableModels.Add((string)field.GetValue(null)!);
         }
     }
-    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+
+    protected override async Task OnParametersSetAsync()
     {
-        if (firstRender)
+        if (string.IsNullOrWhiteSpace(Context.SelectedModel))
         {
-            Context.SelectedModel = await LocalStorage.GetItemAsync<string>("SelectedModel") ?? Models.Claude1_2;
-            StateHasChanged();
+            string? selectedModel = null;
+            try
+            {
+                selectedModel = await LocalStorage.GetItemAsync<string>("SelectedModel");
+            }
+            catch
+            {
+                // do nothing
+            }
+            Context.SelectedModel = string.IsNullOrWhiteSpace(selectedModel) ? Models.Claude1_2 : selectedModel;
+            await InvokeAsync(StateHasChanged);   
         }
     }
     
-    private async Task SendClick()
+    private async Task SubmitHandler()
     {
-        if (Running) return;
+        if (IsRunning) return;
         if (string.IsNullOrWhiteSpace(Context.TextInput)) return;
 
-        Running = true;
+        IsRunning = true;
         try
         {
             Context.LastMessageTime = DateTimeOffset.Now;
@@ -104,14 +118,14 @@
             Context.ChatMessages.Add(currentMessage);
 
             Context.TextInput = ""; // clear input.
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
 
             await foreach (var messageStreamEvent in stream)
             {
                 if (messageStreamEvent is ContentBlockDelta content)
                 {
                     currentMessage.Content[0].Text += content.Delta.Text;
-                    StateHasChanged();
+                    await InvokeAsync(StateHasChanged);
                 }
             }
 
@@ -121,7 +135,7 @@
                 messagesToSummarize.Add(new Message()
                 {
                     Role = Roles.User,
-                    Content = "Provide a title for this conversation."
+                    Content = "Provide a title for this conversation. Provide only the title and no other commentary."
                 });
                 
                 var response = await Anthropic.Messages.CreateAsync(new ()
@@ -137,8 +151,17 @@
         }
         finally
         {
-            Running = false;
-            OnContextChanged?.Invoke(this, EventArgs.Empty);
+            IsRunning = false;
+            await OnContextChanged.InvokeAsync();
+        }
+    }
+
+    private async Task KeyPressHandler(KeyboardEventArgs arg)
+    {
+        if (arg is { Key: "Enter", ShiftKey: false })
+        {
+            await SubmitHandler();
+            await InvokeAsync(StateHasChanged);
         }
     }
 }
