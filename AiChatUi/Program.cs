@@ -1,4 +1,5 @@
 using AiChatUi.Components;
+using AiChatUi.Services;
 using Blazored.LocalStorage;
 using Claudia;
 
@@ -13,7 +14,7 @@ builder.Services.AddRazorComponents()
 Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", builder.Configuration["ANTHROPIC_API_KEY"]);
 
 // Add Anthropic Client
-builder.Services.AddSingleton<Anthropic>();
+builder.Services.AddSingleton<AnthropicFactory>();
 builder.Services.AddBlazoredLocalStorage();
 
 var app = builder.Build();

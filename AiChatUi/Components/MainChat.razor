@@ -1,6 +1,7 @@
 ﻿@using Claudia
 @using Blazored.LocalStorage
 @using AiChatUi.Models
+@using AiChatUi.Services
 
 <div class="d-flex flex-column container-fluid h-100">
 
@@ -70,7 +71,7 @@
 
 @code {
     [Inject]
-    public required Anthropic Anthropic { get; init; }
+    public required AnthropicFactory AnthropicFactory { get; init; }
     
     [Inject]
     public required ILocalStorageService LocalStorage { get; init; }
@@ -84,6 +85,8 @@
     [Parameter]
     public EventCallback OnContextChanged { get; set; }
     
+    private Anthropic Anthropic { get; set; }
+    
     public ElementReference ChatInput { get; set; }
     
     private List<string> AvailableModels { get; set; } = new();
@@ -94,6 +97,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var apiKey = await LocalStorage.GetItemAsync<string>("AnthropicApiKey") ?? string.Empty;
+        Anthropic = AnthropicFactory.Create(apiKey);
+        
         // use reflection to get all the models from the Models class
         foreach (var field in typeof(Claudia.Models).GetFields())
         {

@@ -5,6 +5,26 @@
 
 <PageTitle>Home</PageTitle>
 
+@if (AnthropicApiKey == string.Empty)
+{
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col">
+                <h4>Welcome to Chat UI!</h4>
+                <p>
+                    This is a simple chat UI that uses the Anthropic API to generate messages.
+                </p>
+                <hr>
+                <p class="mb-0">
+                    To get started, please enter your Anthropic API Key below.
+                    <input type="text" class="form-control" @bind="ApiKeyInput" placeholder="API Key..." />
+                    <button class="btn btn-primary mt-2" @onclick="SetApiKey">Submit</button>
+                </p>
+            </div>
+        </div>
+    </div>
+    return;
+}
 <div class="page vh-100">
     <div class="sidebar">
         <div class="top-row ps-3 navbar navbar-dark">
@@ -56,10 +76,16 @@
 
     private ChatContext CurrentContext { get; set; } = new();
 
+    private string AnthropicApiKey { get; set; } = string.Empty;
+    
+    private string ApiKeyInput { get; set; } = string.Empty;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            AnthropicApiKey = await LocalStorage.GetItemAsync<string>("AnthropicApiKey") ?? string.Empty;
+            
             var chatContextIds = await LocalStorage.GetItemAsync<List<Guid>>("ChatContextIds");
             if (chatContextIds != null)
             {
@@ -133,5 +159,11 @@
     {
         await LocalStorage.SetItemAsync("ChatContextIds", ChatContexts.Select(m => m.ChatId).ToList());
         await LocalStorage.SetItemAsync(context.ChatId.ToString(), context);
+    }
+
+    private async Task SetApiKey()
+    {
+        await LocalStorage.SetItemAsync("AnthropicApiKey", ApiKeyInput);
+        AnthropicApiKey = ApiKeyInput;
     }
 }
