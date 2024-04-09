@@ -50,3 +50,12 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+.conversation-window-marker {
+    border-bottom: 1px solid red;
+    display: block;
+    font-size: .65rem;
+    text-align: center;
+    color: red;
+    margin-bottom: 1rem;
+}

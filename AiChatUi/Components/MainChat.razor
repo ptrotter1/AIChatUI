@@ -10,14 +10,27 @@
     <div class="card text-dark bg-light">
         <EditForm OnValidSubmit="SubmitHandler" Model="Context">
             <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col">
+                <div class="row g-1 mb-2">
+                    <div class="col-auto">
                         <input type="checkbox" class="btn-check" id="btn-check-use-markdown" @bind="IsMarkdownEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-markdown" title="Use Markdown"><i class="bi bi-markdown"></i></label>
-    
+                    </div>
+                    <div class="col-auto">
                         <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="IsAutoScrollEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-auto-scroll" title="Autoscroll"><i class="bi bi-chevron-bar-down"></i></label>
                     </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" id="addon-temp" title="Temperature"><i class="bi bi-thermometer-half"></i></span>
+                            <InputNumber TValue="double" type="number" class="form-control" @bind-Value="Context.Temperature" min="0.0" max="1.0" step="0.1" aria-describedby="addon-temp"/>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" id="addon-conversation" title="Conversation Window (number of previous messages)"><i class="bi bi-chat-left-dots"></i></span>
+                            <InputNumber TValue="int" class="form-control" @bind-Value="Context.MaxMessages" min="10" max="100" step="1" aria-describedby="addon-conversation"/>
+                        </div>
+                    </div>                    
                     <div class="col">
                         <select class="form-select form-select-sm" @bind="Context.SelectedModel">
                             @foreach (var item in AvailableModels)
@@ -139,13 +152,16 @@
             
             Context.ChatMessages.Add(new() { Role = Roles.User, Content = Context.TextInput });
 
+            var lastMessageIndex = FirstMessageIndex();
+            var messagesToSend = LastMessages();
+            
             var stream = Anthropic.Messages.CreateStreamAsync(new()
             {
                 Model = Context.SelectedModel,
                 MaxTokens = 1024,
                 Temperature = Context.Temperature,
                 System = string.IsNullOrWhiteSpace(Context.SystemInput) ? null : Context.SystemInput,
-                Messages = Context.ChatMessages.ToArray()
+                Messages = messagesToSend
             });
 
             var currentMessage = new Message { Role = Roles.Assistant, Content = "" };
@@ -189,6 +205,23 @@
             await OnContextChanged.InvokeAsync();
             await JsRuntime.InvokeVoidAsync("focusElement", ChatInput);
         }
+    }
+
+    private int FirstMessageIndex()
+    {
+        var messages = Context.ChatMessages.TakeLast(Context.MaxMessages).ToArray();
+        if (messages[0].Role != Roles.User)
+        {
+            messages = messages.Skip(1).ToArray();
+        }
+        return Context.ChatMessages.TakeWhile(message => message != messages.First()).Count();
+    }
+    
+    private Message[] LastMessages()
+    {
+        var index = FirstMessageIndex();
+        var messages = Context.ChatMessages.Skip(index).ToArray();
+        return messages;
     }
 
     private async Task KeyPressHandler(KeyboardEventArgs arg)

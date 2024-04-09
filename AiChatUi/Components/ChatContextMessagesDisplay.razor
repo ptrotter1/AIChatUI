@@ -9,11 +9,21 @@
         @Context.ChatTitle
     </div>     
     <div @ref="_chatMessages" class="card-body overflow-auto" style="flex: 1 1 10rem">
+        @{
+            var i = 0;
+        }
         @foreach (var item in Context.ChatMessages)
         {
             @((MarkupString)MessageFormatter(item))
             _ = ScrollToBottom();
-        }        
+            if (FirstMessageIndex() > 0 && i == FirstMessageIndex() - 1)
+            {
+                <small class="conversation-window-marker">
+                    <i class="bi bi-arrow-down-short"></i> Conversation window <i class="bi bi-arrow-down-short"></i>
+                </small>
+            }
+            i++;
+        }
     </div>
 </div>
 
@@ -26,7 +36,7 @@
     
     [Parameter]
     public bool UseAutoScroll { get; set; } = true;
-
+    
     private ElementReference _chatMessages;
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -74,5 +84,15 @@
             outString += $"*{message.Role}:*<br/><br/>{message.ToPlainText()}<br/><br/>";
         }
         return outString;
+    }
+    
+    private int FirstMessageIndex()
+    {
+        var messages = Context.ChatMessages.TakeLast(Context.MaxMessages).ToArray();
+        if (messages.Length > 0 && messages[0].Role != Roles.User)
+        {
+            messages = messages.Skip(1).ToArray();
+        }
+        return Context.ChatMessages.TakeWhile(message => message != messages.First()).Count();
     }
 }
