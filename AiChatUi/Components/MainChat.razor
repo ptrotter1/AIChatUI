@@ -7,13 +7,13 @@
     <ChatContextMessagesDisplay Context="Context" UseMarkdown="IsMarkdownEnabled" UseAutoScroll="IsAutoScrollEnabled" />
 
     <div class="card text-dark bg-light">
-        <div class="card-body">
-            <form>
+        <EditForm OnValidSubmit="SubmitHandler" Model="Context">
+            <div class="card-body">
                 <div class="row mb-2">
                     <div class="col">
                         <input type="checkbox" class="btn-check" id="btn-check-use-markdown" @bind="IsMarkdownEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-markdown" title="Use Markdown"><i class="bi bi-markdown"></i></label>
-
+    
                         <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="IsAutoScrollEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-auto-scroll" title="Autoscroll"><i class="bi bi-chevron-bar-down"></i></label>
                     </div>
@@ -29,16 +29,42 @@
                 <div class="row">
                     <div class="col">
                         <div class="input-group">
-                            <textarea class="form-control" type="text" id="chat-input" placeholder="Enter Message..." 
-                                autocomplete="off" @bind="Context.TextInput" @onkeydown="@KeyPressHandler"></textarea>
-                            <button type="button" class="btn btn-primary" id="button-addon2" disabled="@IsRunning" @onclick="SubmitHandler">
+                            @* This is kind of a hacky way to get the textarea to reset. Couldn't figure out how
+                            to make it clear itself and then update afterwards without doing it this way. *@
+                            @if (IsRunning)
+                            {
+                                <textarea class="form-control" disabled></textarea>
+                            }
+                            else
+                            {
+                                @* Working around quirky blazor server behavior. Was having trouble getting two-way
+                                binding and 'Enter' to submit to work on a textarea. *@
+                                <textarea @ref="ChatInput" class="form-control" id="chat-input" 
+                                    placeholder="Enter Message..." style="height: @Context.TextAreaHeight" 
+                                    autocomplete="off" @oninput="MessageInputHandler" 
+                                    @onkeydown="KeyPressHandler">@Context.TextInput</textarea>
+
+                                <a href="javascript:void(0);" 
+                                   style="position: absolute; bottom: 3px; right: 3rem"
+                                   @onclick="ToggleTextAreaHeight">
+                                    @if (Context.TextAreaHeight == "4rem")
+                                    {
+                                        <i class="bi bi-arrows-expand"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-arrows-collapse"></i>
+                                    }
+                                </a>                                    
+                            }
+                            <button type="submit" class="btn btn-primary" id="button-addon2" disabled="@IsRunning">
                                 <i class="bi bi-send"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-            </form>
-        </div>
+            </div>
+        </EditForm>
     </div>    
 </div>
 
@@ -57,6 +83,8 @@
     
     [Parameter]
     public EventCallback OnContextChanged { get; set; }
+    
+    public ElementReference ChatInput { get; set; }
     
     private List<string> AvailableModels { get; set; } = new();
     
@@ -153,6 +181,7 @@
         {
             IsRunning = false;
             await OnContextChanged.InvokeAsync();
+            await JsRuntime.InvokeVoidAsync("focusElement", ChatInput);
         }
     }
 
@@ -164,4 +193,17 @@
             await InvokeAsync(StateHasChanged);
         }
     }
+    
+    private void MessageInputHandler(ChangeEventArgs arg)
+    {
+        if (arg.Value != null) 
+            Context.TextInput = arg.Value.ToString() ?? string.Empty;
+    }
+
+    private async Task ToggleTextAreaHeight()
+    {
+        Context.TextAreaHeight = Context.TextAreaHeight == "4rem" ? "10rem" : "4rem";
+        await OnContextChanged.InvokeAsync();
+    }
+
 }

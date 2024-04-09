@@ -12,4 +12,5 @@ public class ChatContext
     public List<Message> ChatMessages { get; set; } = new();
     public string SelectedModel { get; set; } = string.Empty;
     public DateTimeOffset LastMessageTime { get; set; } = DateTimeOffset.Now;
+    public string TextAreaHeight { get; set; } = "4rem";
 }
