@@ -9,6 +9,8 @@
         @Context.ChatTitle
     </div>     
     <div @ref="_chatMessages" class="card-body overflow-auto" style="flex: 1 1 10rem">
+        @((MarkupString)SystemMessageFormatter(Context.SystemInput))
+        
         @{
             var i = 0;
         }
@@ -22,6 +24,7 @@
                     <i class="bi bi-arrow-down-short"></i> Conversation window <i class="bi bi-arrow-down-short"></i>
                 </small>
             }
+
             i++;
         }
     </div>
@@ -55,6 +58,22 @@
         {
             await JsRuntime.InvokeVoidAsync("scrollToBottom", _chatMessages);                
         }
+    }
+
+    private string SystemMessageFormatter(string systemMessage)
+    {
+        var outString = string.Empty;
+
+        if (UseMarkdown)
+        {
+            outString += $"<div class='mb-2'><span class='text-secondary fw-bold'>System:</span><p>{systemMessage.ReplaceLineEndings("<br/>")}</p></div>";
+        }
+        else
+        {
+            outString += $"*system:*<br/><br/>{systemMessage}<br/><br/>";
+        }
+
+        return outString;
     }
     
     private string MessageFormatter(Message message)
