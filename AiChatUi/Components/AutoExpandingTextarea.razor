@@ -1,0 +1,42 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+
+<div class="textarea-wrapper">
+    <textarea @ref="textareaRef" @attributes="AdditionalAttributes" @bind="Value" @bind:event="oninput" 
+        @onkeydown="HandleKeyDown" style="height: @(height)px;"></textarea>
+</div>
+
+@code {
+    [Inject] public required IJSRuntime JsRuntime { get; init; }
+
+    [Parameter] 
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> AdditionalAttributes { get; set; } = new();
+
+    private ElementReference textareaRef;
+    private int height = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AdjustTextareaHeight();
+        }
+    }
+
+    private async Task AdjustTextareaHeight()
+    {
+        height = await JsRuntime.InvokeAsync<int>("getTextareaHeight", textareaRef);
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AdjustTextareaHeight();
+        }
+    }
+
+}

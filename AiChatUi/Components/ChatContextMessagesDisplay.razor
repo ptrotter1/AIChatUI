@@ -7,10 +7,12 @@
 <div class="card text-dark bg-white flex-grow-1 mb-2">
     <div class="card-header">
         @Context.ChatTitle
-    </div>     
+    </div>
     <div @ref="_chatMessages" class="card-body overflow-auto" style="flex: 1 1 10rem">
-        @((MarkupString)SystemMessageFormatter(Context.SystemInput))
-        
+        @if (ShowSystemMessage)
+        {
+            <SystemMessage Context="Context" UseMarkdown="UseMarkdown"/>            
+        }
         @{
             var i = 0;
         }
@@ -39,6 +41,9 @@
     
     [Parameter]
     public bool UseAutoScroll { get; set; } = true;
+    
+    [Parameter]
+    public bool ShowSystemMessage { get; set; } = false;
     
     private ElementReference _chatMessages;
     

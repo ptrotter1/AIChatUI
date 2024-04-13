@@ -1,0 +1,72 @@
+﻿@using AiChatUi.Models
+
+<div class="card mb-4 text-dark bg-light">
+    <div class="card-body" style="position: relative">
+        @if (UseMarkdown)
+        {
+            <div>
+                <span class='text-secondary fw-bold'>System:</span>
+                @if (IsEditing)
+                {
+                    <AutoExpandingTextarea class="form-control" id="system-message-input" @bind-Value="@Context.SystemInput"
+                            style="height: 10rem" disabled="@(Context.ChatMessages.Count > 0)"></AutoExpandingTextarea>   
+                }
+                else
+                {
+                    @((MarkupString)SystemMessageFormatter(Context.SystemInput))                    
+                }
+            </div>
+        }
+        else
+        {
+            <text>*system:*</text>
+            <br/>
+            <br/>
+            @if (IsEditing)
+            {
+                <AutoExpandingTextarea class="form-control" id="system-message-input" @bind-Value="@Context.SystemInput"
+                          style="height: 10rem" disabled="@(Context.ChatMessages.Count > 0)"></AutoExpandingTextarea>                
+            }
+            else
+            {
+                @((MarkupString)SystemMessageFormatter(Context.SystemInput))                
+            }
+        }
+        <a href="javascript:void(0)"
+           style="position: absolute; bottom: 3px; right: 9px;"
+           @onclick="ToggleEditHandler">
+            <i class="bi bi-pencil"></i>
+        </a>
+    </div>
+</div>
+
+@code {
+    [Parameter] 
+    public ChatContext Context { get; set; } = new();
+    
+    [Parameter]
+    public bool UseMarkdown { get; set; } = true;
+    
+    public bool IsEditing { get; set; } = false;
+    
+    private string SystemMessageFormatter(string systemMessage)
+    {
+        var outString = string.Empty;
+
+        if (UseMarkdown)
+        {
+            outString += $"<p class='mb-0'>{systemMessage.ReplaceLineEndings("<br/>")}</p>";
+        }
+        else
+        {
+            outString += $"{systemMessage}<br/><br/>";
+        }
+
+        return outString;
+    }
+
+    private void ToggleEditHandler()
+    {
+        IsEditing = !IsEditing;
+    }
+}

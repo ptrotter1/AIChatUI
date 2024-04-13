@@ -5,7 +5,7 @@
 
 <div class="d-flex flex-column container-fluid h-100">
 
-    <ChatContextMessagesDisplay Context="Context" UseMarkdown="IsMarkdownEnabled" UseAutoScroll="IsAutoScrollEnabled" />
+    <ChatContextMessagesDisplay Context="Context" UseMarkdown="IsMarkdownEnabled" UseAutoScroll="IsAutoScrollEnabled" ShowSystemMessage="ShowSystemMessage" />
 
     <div class="card text-dark bg-light">
         <EditForm OnValidSubmit="SubmitHandler" Model="Context">
@@ -18,6 +18,10 @@
                     <div class="col-auto">
                         <input type="checkbox" class="btn-check" id="btn-check-use-auto-scroll" @bind="IsAutoScrollEnabled" autocomplete="off">
                         <label class="btn btn-outline-primary btn-sm" for="btn-check-use-auto-scroll" title="Autoscroll"><i class="bi bi-chevron-bar-down"></i></label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="checkbox" class="btn-check" id="btn-check-show-system-message" @bind="ShowSystemMessage" autocomplete="off">
+                        <label class="btn btn-outline-primary btn-sm" for="btn-check-show-system-message" title="Show System Messages"><i class="bi bi-gear"></i></label>
                     </div>
                     <div class="col-auto">
                         <div class="input-group input-group-sm">
@@ -107,6 +111,7 @@
     private bool IsMarkdownEnabled { get; set; } = true;
     private bool IsAutoScrollEnabled { get; set; } = true;
     private bool IsRunning { get; set; } = false;
+    private bool ShowSystemMessage { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
