@@ -29,6 +29,7 @@
     overflow: hidden;
     white-space: nowrap;
     padding-top: 5px;
+    padding-left: 0.5rem;
 }
 
 .nav-item ::deep a.active {
